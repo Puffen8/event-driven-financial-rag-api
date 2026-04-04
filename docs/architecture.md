@@ -6,7 +6,7 @@
 * **Data Ingestion (Producers):** Scheduled Python microservices act as event producers, continuously fetching raw pricing, fundamental metrics, and earnings call transcripts from external APIs (FinancialModelPrep, YFinance, Alpaca). This raw data is published immediately to specific Apache Kafka topics, decoupling ingestion from downstream processing.
 * **Stream Processing:** An Apache Flink job consumes the Kafka streams in real-time. It cleans the incoming payloads, calculates rolling metrics, and sinks the structured data directly into a PostgreSQL database optimized for time-series workloads.
 * **Backend Serving Layer:** A robust Java Spring Boot application connects to the PostgreSQL database. It handles user authentication, dashboard configuration storage, and exposes the processed financial data via fast REST API endpoints.
-* **Frontend (Demo & API Documentation):** * **Data Visualization:** Swagger UI (OpenAPI) integrated directly into the Spring Boot service, providing a professional, interactive interface for engineers and recruiters to execute live REST queries and view JSON responses.
+* **Frontend (Demo & API Documentation):** * **Data Visualization:** Swagger UI (OpenAPI) integrated directly into the Spring Boot service, providing a professional, interactive interface to execute live REST queries and view JSON responses.
   * **AI Chat Interface:** A lightweight Streamlit (Python) web app serving strictly as a demonstration UI for the RAG engine, enabling real-time chat interactions with the LLM and vector database.
 
 ### RAG System & AI Context Engine
