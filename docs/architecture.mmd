@@ -1,0 +1,35 @@
+graph LR
+    %% Phase 1: Pipeline
+    subgraph 1. Big Data Pipeline
+        Ext["External APIs"] -->|Fetch| Python["Python Ingestion"]
+        Python -->|Produce| Kafka{"Kafka Broker"}
+        Kafka -->|Stream| Flink["Apache Flink"]
+    end
+
+    %% Phase 2: Storage
+    subgraph 2. Unified Database
+        Flink -->|Sink Metrics| TS[("TimescaleDB")]
+        Flink -->|Sink Vectors| Vec[("pgvector")]
+    end
+
+    %% Phase 3: Backend
+    subgraph 3. Microservices
+        TS -->|Serve Data| Spring["Spring Boot API"]
+        Vec -->|Serve Search| Fast["FastAPI RAG"]
+        
+        %% Internal context gathering
+        Fast -.->|Internal Call| Spring
+        Fast <-->|Context & Prompt| LLM(("LLM"))
+    end
+
+    %% Phase 4: Security & Routing
+    subgraph 4. API Gateway Layer
+        Spring -->|Payloads| Gateway{"API Gateway &<br/>Rate Limiter"}
+        Fast -->|Payloads| Gateway
+    end
+
+    %% Phase 5: Frontend
+    subgraph 5. Client UIs
+        Gateway -->|Render Charts| React["React Dashboard"]
+        Gateway -->|Render Chat| Streamlit["Streamlit UI"]
+    end
