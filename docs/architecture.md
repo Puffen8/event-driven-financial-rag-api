@@ -3,15 +3,18 @@
 ## System Architecture & Functionality
 
 ### Core Data Pipeline & API
-* **Data Ingestion (Producers):** Scheduled Python microservices act as event producers, continuously fetching raw pricing, fundamental metrics, and earnings call transcripts from external APIs (FinancialModelPrep, YFinance, Alpaca). This raw data is published immediately to specific Apache Kafka topics, decoupling ingestion from downstream processing.
-* **Stream Processing:** An Apache Flink job consumes the Kafka streams in real-time. It cleans the incoming payloads, calculates rolling metrics, and sinks the structured data directly into a PostgreSQL database optimized for time-series workloads.
+* **Data Ingestion (Producers):** Scheduled Python microservices act as event producers, continuously fetching raw pricing, fundamental metrics, and earnings call transcripts from external APIs (FinancialModelPrep, YFinance, Alpaca, Alpha Vantage, Finnhub.io). This raw data is published immediately to specific Apache Kafka topics, decoupling ingestion from downstream processing.
+* **Stream Processing:** An Apache Flink job consumes the Kafka streams in real-time. It cleans the incoming payloads, calculates rolling metrics, and sinks both structured data (TimescaleDB) and vectorized news/transcripts (pgvector) directly into the PostgreSQL instance.
 * **Backend Serving Layer:** A robust Java Spring Boot application connects to the PostgreSQL database. It handles user authentication, dashboard configuration storage, and exposes the processed financial data via fast REST API endpoints.
 * **Frontend (Demo & API Documentation):** * **Data Visualization:** Swagger UI (OpenAPI) integrated directly into the Spring Boot service, providing a professional, interactive interface to execute live REST queries and view JSON responses.
   * **AI Chat Interface:** A lightweight Streamlit (Python) web app serving strictly as a demonstration UI for the RAG engine, enabling real-time chat interactions with the LLM and vector database.
 
 ### RAG System & AI Context Engine
-* **Vectorization & Storage:** Earnings call transcripts, SEC filings, and financial news fetched during the ingestion phase are processed by a dedicated Python service. The text is chunked, converted into high-dimensional embeddings via an LLM API, and stored in a VectorDB (managed via the `pgvector` extension within the existing PostgreSQL instance).
-* **LLM Contextualization:** A standalone Python FastAPI microservice handles the RAG operations. When a user queries a stock, the API performs a similarity search against the VectorDB, retrieves the most relevant transcript/news excerpts, combines them with live fundamental data, and passes the strict context to an LLM to generate synthesized, data-grounded insights on current stock conditions.
+* **Vectorization & Storage:** Earnings call transcripts, SEC filings, and news fetched during ingestion are processed through the streaming pipeline and stored as high-dimensional embeddings within the pgvector-enabled PostgreSQL instance.
+* **LLM Contextualization:** A standalone Python FastAPI microservice handles the RAG operations. When a user queries a stock, the API performs a similarity search against pgvector, retrieves relevant text excerpts, and performs an internal HTTP call to the Spring Boot API to gather live fundamental data for a consolidated LLM context.
+
+### Security and Routing
+* **API Gateway & Rate Limiter:** A central gateway acts as the single entry point for all frontend requests. It handles service routing and enforces strict rate limiting to protect backend microservices and manage LLM API costs.
 
 ## Tech Stack
 * **Data Providers:** FinancialModelPrep, YFinance, Alpaca Markets (for pricing/fundamentals and transcript retrieval).
@@ -23,8 +26,10 @@
   * **Standard Relational Schema:** For user configs, watchlists, and dashboard rules.
 * **Core Data API:** Java with Spring Boot, Spring Data JPA, and Jackson for JSON serialization.
 * **AI & RAG API:** Python with FastAPI, LangChain/LangGraph/LlamaIndex, and an LLM provider (OpenAI, Gemini, or Claude).
-* **Frontend:** React.js (or Next.js) with TypeScript, Tailwind CSS, and Recharts.
+* **Frontend:** React.js (or Next.js) with TypeScript, Tailwind CSS, and Recharts. 
+  * Both the **Data Visualization (React)** and **AI Chat Interface (Streamlit)** communicate with backend microservices exclusively through the API Gateway/Rate Limiter layer.
 * **Infrastructure & DevOps:** Docker & Docker Compose for containerization. GitHub Actions for CI/CD pipelines (Linting, type checking, unit tests).
+* **Security & Routing:** API Gateway for rate limiting and service orchestration.
 * **Testing:** * Backend: JUnit & Mockito.
   * Frontend: Jest & React Testing Library.
 
