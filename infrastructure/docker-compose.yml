@@ -13,7 +13,6 @@ services:
     container_name: financial_db
     profiles: ["infra"]
     environment:
-      # No more ":-admin" defaults. Just the variables.
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -29,7 +28,6 @@ services:
         limits:
           memory: 1G
     healthcheck:
-      # We use the variables here so the check is always accurate to your config
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
@@ -42,25 +40,24 @@ services:
     container_name: message_broker
     profiles: ["infra"]
     environment:
-      # 1. KRaft Configuration (Replaces Zookeeper)
+      # KRaft Configuration (Replaces Zookeeper)
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      # 2. Network Routing
+      # Network Routing
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      # 3. Solo Node Overrides
+      # Solo Node Overrides
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      # 4. Mandatory Cluster ID for auto-formatting storage in KRaft mode
+      # Mandatory Cluster ID for auto-formatting storage in KRaft mode
       CLUSTER_ID: ${CLUSTER_ID}
     ports:
       - "9092:9092"
     networks:
       - data_network
     volumes:
-      # Confluent uses a different internal directory for data than Bitnami
       - kafka_data:/var/lib/kafka/data
     deploy:
       resources:
