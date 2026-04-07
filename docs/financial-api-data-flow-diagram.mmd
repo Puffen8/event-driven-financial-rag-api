@@ -1,0 +1,22 @@
+flowchart TD
+    %% Client Request
+    Client["React Dashboard UI<br/>(User clicks 'View AAPL Chart')"]
+
+    %% Gateway Layer
+    Gateway{"API Gateway<br/>(Rate Limiter & Auth)"}
+    
+    %% Backend
+    Spring["Spring Boot REST API<br/>(Data Serving Layer)"]
+    
+    %% Database
+    DB_Time[("TimescaleDB<br/>(Structured Data)")]
+
+    %% The Flow
+    Client -->|GET /api/v1/stocks/AAPL| Gateway
+    Gateway -->|Forward Request| Spring
+    
+    Spring -->|SELECT time, price...| DB_Time
+    DB_Time -->|Row Data| Spring
+    
+    Spring -- "Format to JSON<br/>{ticker, history: []}" --> Gateway
+    Gateway -->|Return Payload| Client
