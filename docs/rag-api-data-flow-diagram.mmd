@@ -1,0 +1,35 @@
+flowchart TD
+    %% Client Request
+    Client["Streamlit UI<br/>(User asks: 'How are Apple's margins?')"]
+
+    %% Gateway Layer
+    Gateway{"API Gateway<br/>(Rate Limiter to protect LLM costs)"}
+
+    %% RAG Engine (FastAPI)
+    subgraph FastAPI RAG Engine
+        Embed_Query["1. Embed Query<br/>(Convert text to vector)"]
+        Search_DB["2. Vector Similarity Search<br/>(Find top-k chunks)"]
+        Fetch_Live["3. Fetch Live Metrics<br/>(Internal REST Call)"]
+        Build_Context["4. Construct Context Prompt<br/>(Combine text + metrics)"]
+    end
+
+    %% External Systems
+    DB_Vector[("pgvector<br/>(Returns relevant<br/>transcript chunks)")]
+    API_Spring["Spring Boot API<br/>(Returns live margins)"]
+    LLM(("LLM Provider<br/>(OpenAI/Claude)"))
+
+    %% The Flow
+    Client -->|POST /api/v1/chat| Gateway
+    Gateway -->|Forward Request| Embed_Query
+    
+    Embed_Query --> Search_DB
+    
+    Search_DB -->|Cosine Similarity| DB_Vector
+    DB_Vector -->|Top 5 Excerpts| Build_Context
+    
+    Search_DB -.->|Identify Ticker| Fetch_Live
+    Fetch_Live -->|GET /api/v1/metrics| API_Spring
+    API_Spring -->|JSON Metrics| Build_Context
+
+    Build_Context -->|Final Prompt Payload| LLM
+    LLM -- "Streamed AI Response" --> Client
