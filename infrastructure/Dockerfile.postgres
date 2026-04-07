@@ -1,0 +1,23 @@
+# infrastructure/Dockerfile.postgres
+
+FROM timescale/timescaledb:2.14.2-pg15
+
+USER root
+
+# Alpine Linux uses 'apk' instead of 'apt-get'
+RUN apk update && apk add --no-cache \
+    build-base \
+    git \
+    clang15 \
+    llvm15
+
+# Clone and build pgvector pinned to a specific release
+RUN cd /tmp && \
+    git clone --branch v0.6.0 https://github.com/pgvector/pgvector.git && \
+    cd pgvector && \
+    make && \
+    make install && \
+    rm -rf /tmp/pgvector
+
+# Switch back to the secure default user
+USER postgres

@@ -1,0 +1,118 @@
+# infrastructure/docker-compose.yml
+
+networks:
+  data_network:
+    driver: bridge
+
+services:
+# 1. UNIFIED DATABASE (Timescale + pgvector)
+  postgres:
+    build: 
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: financial_db
+    profiles: ["infra"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    networks:
+      - data_network
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. EVENT BROKER (Kafka KRaft)
+# KAFKA (Confluent KRaft Mode - No Zookeeper)
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: message_broker
+    profiles: ["infra"]
+    environment:
+      # KRaft Configuration (Replaces Zookeeper)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Network Routing
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      # Solo Node Overrides
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Mandatory Cluster ID for auto-formatting storage in KRaft mode
+      CLUSTER_ID: ${CLUSTER_ID}
+    ports:
+      - "9092:9092"
+    networks:
+      - data_network
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+
+  # 3. KAFKA UI
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: kafka_ui
+    profiles: ["infra"]
+    environment:
+      KAFKA_BROKERS: kafka:29092
+    ports:
+      - "8080:8080"
+    networks:
+      - data_network
+    depends_on:
+      - kafka
+
+  # 4. STREAM PROCESSING (Flink JobManager - The Master Node)
+  flink-jobmanager:
+    image: flink:1.18-java11
+    container_name: flink_jobmanager
+    profiles: ["infra"]
+    ports:
+      - "8081:8081" # Flink Web UI
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+    networks:
+      - data_network
+    depends_on:
+      - kafka
+      - postgres
+
+  # 5. STREAM PROCESSING (Flink TaskManager - The Worker Node)
+  flink-taskmanager:
+    image: flink:1.18-java11
+    container_name: flink_taskmanager
+    profiles: ["infra"]
+    command: taskmanager
+    scale: 1 # Scale up later if testing distributed processing
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    networks:
+      - data_network
+    depends_on:
+      - flink-jobmanager
+
+volumes:
+  pg_data:
+  kafka_data:
