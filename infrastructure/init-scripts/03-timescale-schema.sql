@@ -6,7 +6,7 @@ CREATE TABLE stocks (
 );
 
 CREATE TABLE daily_stock_data (
-    ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
+    ticker VARCHAR(10) REFERENCES stocks(ticker) ON DELETE CASCADE,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     open NUMERIC(10, 4),
     high NUMERIC(10, 4),
@@ -15,11 +15,11 @@ CREATE TABLE daily_stock_data (
     volume BIGINT,
     UNIQUE (ticker, timestamp)
 );
-SELECT create_hypertable('stock_data', 'timestamp');
-CREATE INDEX idx_stock_data_ticker_time ON stock_data (ticker, timestamp DESC);
+SELECT create_hypertable('daily_stock_data', 'timestamp');
+CREATE INDEX idx_stock_data_ticker_time ON daily_stock_data (ticker, timestamp DESC);
 
 CREATE TABLE stock_fundamental_metrics (
-    ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
+    ticker VARCHAR(10) REFERENCES stocks(ticker) ON DELETE CASCADE,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     pe_ratio NUMERIC(10, 4),
     ps_ratio NUMERIC(10, 4),
@@ -31,7 +31,7 @@ CREATE INDEX idx_fundamentals_ticker_time ON stock_fundamental_metrics (ticker, 
 
 
 CREATE TABLE quarterly_financials (
-    ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
+    ticker VARCHAR(10) REFERENCES stocks(ticker) ON DELETE CASCADE,
     report_date TIMESTAMP WITH TIME ZONE NOT NULL, -- The day the earnings were reported
     eps_basic NUMERIC(10, 4),
     revenue BIGINT,
