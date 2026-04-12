@@ -30,3 +30,17 @@ SELECT create_hypertable('stock_fundamental_metrics', 'timestamp');
 CREATE INDEX idx_fundamentals_ticker_time ON stock_fundamental_metrics (ticker, timestamp DESC);
 
 
+CREATE TABLE quarterly_financials (
+    ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
+    report_date TIMESTAMP WITH TIME ZONE NOT NULL, -- The day the earnings were reported
+    eps_basic NUMERIC(10, 4),
+    revenue BIGINT,
+    net_income BIGINT,
+    UNIQUE (ticker, report_date)
+);
+
+-- Convert to a hypertable. Even though it's lower frequency, Timescale 
+-- still optimizes chronological queries on it.
+SELECT create_hypertable('quarterly_financials', 'report_date');
+
+CREATE INDEX idx_quarterly_ticker_time ON quarterly_financials (ticker, report_date DESC);
