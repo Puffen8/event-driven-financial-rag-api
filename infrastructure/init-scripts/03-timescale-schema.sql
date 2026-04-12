@@ -5,7 +5,7 @@ CREATE TABLE stocks (
     added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE stock_fundamentals (
+CREATE TABLE daily_stock_data (
     ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     open NUMERIC(10, 4),
@@ -13,13 +13,20 @@ CREATE TABLE stock_fundamentals (
     low NUMERIC(10, 4),
     close NUMERIC(10, 4),
     volume BIGINT,
-    
-    -- Pre-computed Fundamental Ratios (Denormalized for fast reads)
-    pe_ratio NUMERIC(10, 4),
-    ps_ratio NUMERIC(10, 4),
-    
     UNIQUE (ticker, timestamp)
 );
+SELECT create_hypertable('stock_data', 'timestamp');
+CREATE INDEX idx_stock_data_ticker_time ON stock_data (ticker, timestamp DESC);
 
-SELECT create_hypertable('stock_prices', 'timestamp');
+CREATE TABLE stock_fundamental_metrics (
+    ticker VARCHAR(10) REFERENCES supported_stocks(ticker) ON DELETE CASCADE,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    pe_ratio NUMERIC(10, 4),
+    ps_ratio NUMERIC(10, 4),
+    dividend_yield NUMERIC(5, 4),
+    UNIQUE (ticker, timestamp)
+);
+SELECT create_hypertable('stock_fundamental_metrics', 'timestamp');
+CREATE INDEX idx_fundamentals_ticker_time ON stock_fundamental_metrics (ticker, timestamp DESC);
+
 
